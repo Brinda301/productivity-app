@@ -1,0 +1,193 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ============ DIET MODULE ============
+
+model Meal {
+  id        String     @id @default(cuid())
+  name      String     // "Breakfast", "Lunch", "Dinner", "Snack"
+  date      DateTime
+  notes     String?
+  items     FoodItem[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+}
+
+model FoodItem {
+  id           String   @id @default(cuid())
+  name         String
+  servingSize  Float
+  servingUnit  String   // "g", "ml", "oz", "cup", etc.
+  // Macros (per serving)
+  calories     Float
+  protein      Float    // grams
+  carbs        Float    // grams
+  fat          Float    // grams
+  fiber        Float?   // grams
+  sugar        Float?   // grams
+  // Micros (optional, per serving)
+  vitaminA     Float?   // mcg
+  vitaminC     Float?   // mg
+  vitaminD     Float?   // mcg
+  calcium      Float?   // mg
+  iron         Float?   // mg
+  potassium    Float?   // mg
+  sodium       Float?   // mg
+  // Relations
+  mealId       String
+  meal         Meal     @relation(fields: [mealId], references: [id], onDelete: Cascade)
+  createdAt    DateTime @default(now())
+}
+
+model DailyNutritionGoal {
+  id        String   @id @default(cuid())
+  calories  Float
+  protein   Float
+  carbs     Float
+  fat       Float
+  fiber     Float?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+}
+
+// ============ EMPLOYMENT MODULE ============
+
+model JobApplication {
+  id          String      @id @default(cuid())
+  company     String
+  position    String
+  url         String?
+  salary      String?     // Range or specific
+  location    String?
+  remote      Boolean     @default(false)
+  status      String      @default("saved")
+  // Status: saved | applied | phone_screen | interview | offer | rejected | withdrawn
+  appliedDate DateTime?
+  notes       String?
+  resumeUsed  String?     // Path or version name
+  coverLetter String?
+  contacts    Contact[]
+  interviews  Interview[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+model Contact {
+  id               String          @id @default(cuid())
+  name             String
+  email            String?
+  phone            String?
+  role             String?         // "Recruiter", "Hiring Manager", etc.
+  company          String?
+  notes            String?
+  jobApplicationId String?
+  jobApplication   JobApplication? @relation(fields: [jobApplicationId], references: [id], onDelete: SetNull)
+  createdAt        DateTime        @default(now())
+}
+
+model Interview {
+  id               String         @id @default(cuid())
+  type             String         // "phone", "technical", "behavioral", "onsite", "final"
+  scheduledAt      DateTime
+  duration         Int?           // minutes
+  location         String?        // URL for virtual, address for in-person
+  notes            String?
+  feedback         String?
+  jobApplicationId String
+  jobApplication   JobApplication @relation(fields: [jobApplicationId], references: [id], onDelete: Cascade)
+  createdAt        DateTime       @default(now())
+}
+
+// ============ FITNESS MODULE ============
+
+model Workout {
+  id        String     @id @default(cuid())
+  name      String     // "Push Day", "Cardio", "Leg Day"
+  date      DateTime
+  duration  Int?       // minutes
+  notes     String?
+  exercises Exercise[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+}
+
+model Exercise {
+  id        String        @id @default(cuid())
+  name      String
+  type      String        // "strength", "cardio", "flexibility", "other"
+  sets      ExerciseSet[]
+  // Cardio-specific
+  distance  Float?        // km
+  pace      Float?        // min/km
+  // Relations
+  workoutId String
+  workout   Workout       @relation(fields: [workoutId], references: [id], onDelete: Cascade)
+  order     Int           @default(0)
+}
+
+model ExerciseSet {
+  id         String   @id @default(cuid())
+  setNumber  Int
+  reps       Int?
+  weight     Float?   // kg or lbs (user preference)
+  duration   Int?     // seconds (for timed exercises)
+  notes      String?
+  exerciseId String
+  exercise   Exercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+}
+
+model FitnessGoal {
+  id           String    @id @default(cuid())
+  name         String    // "Bench Press 225lbs", "Run 5K under 25min"
+  category     String    // "strength", "cardio", "weight", "body_comp"
+  targetValue  Float
+  currentValue Float     @default(0)
+  unit         String    // "lbs", "kg", "minutes", "km", etc.
+  deadline     DateTime?
+  completed    Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+// ============ TASKS MODULE ============
+
+model Task {
+  id          String    @id @default(cuid())
+  title       String
+  description String?
+  status      String    @default("todo") // "todo", "in_progress", "done"
+  priority    String    @default("medium") // "low", "medium", "high", "urgent"
+  dueDate     DateTime?
+  dueTime     String?   // "14:30" — separate from date for flexibility
+  category    String?   // "personal", "school", "work", "health"
+  tags        String?   // Comma-separated: "exam,csc258,study"
+  recurring   String?   // "daily", "weekly", "monthly", null
+  completed   Boolean   @default(false)
+  completedAt DateTime?
+  parentId    String?   // For subtasks
+  parent      Task?     @relation("Subtasks", fields: [parentId], references: [id])
+  subtasks    Task[]    @relation("Subtasks")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model CalendarEvent {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  startTime   DateTime
+  endTime     DateTime
+  allDay      Boolean  @default(false)
+  location    String?
+  category    String?
+  color       String?  // Hex color for UI
+  externalId  String?  // Google Calendar event ID for sync
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
