@@ -1,127 +1,157 @@
 'use client';
-import { useState } from 'react';
-import { useDiet } from '@/modules/diet/hooks/useDiet';
-import FoodLog from '@/modules/diet/components/FoodLog';
-import MacroChart from '@/modules/diet/components/MacroChart';
-import MicroTracker from '@/modules/diet/components/MicroTracker';
-import MealPlanner from '@/modules/diet/components/MealPlanner';
-import Modal from '@/shared/components/Modal';
-import type { Meal, MealFormData } from '@/modules/diet/types';
+import { useState, useCallback } from 'react';
+import { useDiet, useMonthlyScores } from '@/modules/diet/hooks/useDiet';
+import { useFoodDatabase } from '@/modules/diet/hooks/useFoodDatabase';
+import DietCalendar from '@/modules/diet/components/DietCalendar';
+import MacroPanel from '@/modules/diet/components/MacroPanel';
+import MicroPanel from '@/modules/diet/components/MicroPanel';
+import DayMealLog from '@/modules/diet/components/DayMealLog';
+import FoodQuickAdd from '@/modules/diet/components/FoodQuickAdd';
+import CustomFoodModal from '@/modules/diet/components/CustomFoodModal';
+import Toast from '@/modules/diet/components/Toast';
+import type { FoodTemplate } from '@/modules/diet/types';
 
 export default function DietPage() {
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const { meals, summary, loading, createMeal, deleteMeal, refetch } = useDiet(selectedDate);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingMeal, setEditingMeal] = useState<Meal | null>(null);
+  const [calendarYear, setCalendarYear] = useState(new Date().getFullYear());
+  const [calendarMonth, setCalendarMonth] = useState(new Date().getMonth() + 1);
+  const [isCustomFoodOpen, setIsCustomFoodOpen] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  const [toastVisible, setToastVisible] = useState(false);
 
-  const handleCreateMeal = async (data: MealFormData) => {
-    await createMeal(data);
-    setIsModalOpen(false);
+  const {
+    summary,
+    loading,
+    allFoodItems,
+    quickAddFood,
+    deleteFoodItem,
+  } = useDiet(selectedDate);
+
+  const { scores, refetch: refetchScores } = useMonthlyScores(calendarYear, calendarMonth);
+
+  const {
+    foods,
+    searchQuery,
+    setSearchQuery,
+    incrementUsage,
+    addCustomFood,
+  } = useFoodDatabase();
+
+  const showToast = useCallback((message: string) => {
+    setToastMessage(message);
+    setToastVisible(true);
+  }, []);
+
+  const dismissToast = useCallback(() => {
+    setToastVisible(false);
+  }, []);
+
+  const handleSelectDate = (date: Date) => {
+    setSelectedDate(date);
+    // Update calendar view to match selected month
+    setCalendarYear(date.getFullYear());
+    setCalendarMonth(date.getMonth() + 1);
   };
 
-  const handleEditMeal = (meal: Meal) => {
-    setEditingMeal(meal);
+  const handleChangeMonth = (year: number, month: number) => {
+    setCalendarYear(year);
+    setCalendarMonth(month);
   };
 
-  const handleDeleteMeal = async (id: string) => {
-    if (confirm('Are you sure you want to delete this meal?')) {
-      await deleteMeal(id);
+  const handleAddFood = async (food: FoodTemplate, servingSize: number) => {
+    try {
+      await quickAddFood(food, servingSize);
+      incrementUsage(food.id);
+      showToast(`Added ${servingSize}g ${food.name}`);
+      refetchScores();
+    } catch {
+      showToast('Failed to add food item');
     }
   };
 
-  const changeDate = (days: number) => {
-    const newDate = new Date(selectedDate);
-    newDate.setDate(newDate.getDate() + days);
-    setSelectedDate(newDate);
+  const handleDeleteFoodItem = async (id: string) => {
+    try {
+      await deleteFoodItem(id);
+      refetchScores();
+    } catch {
+      showToast('Failed to remove food item');
+    }
+  };
+
+  const handleSaveCustomFood = (food: Omit<FoodTemplate, 'id' | 'isCustom'>) => {
+    addCustomFood(food);
+    showToast(`Added "${food.name}" to your food database`);
   };
 
   const isToday = selectedDate.toDateString() === new Date().toDateString();
+  const dateLabel = isToday
+    ? 'Today'
+    : selectedDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Diet Tracker</h1>
-        <div className="flex items-center gap-3">
-          {/* Date Navigation */}
-          <div className="flex items-center gap-2 bg-white rounded-lg border border-gray-200 p-1">
+        <div className="flex items-center gap-2 text-sm text-gray-600">
+          <span className="font-medium">{dateLabel}</span>
+          {!isToday && (
             <button
-              onClick={() => changeDate(-1)}
-              className="p-2 hover:bg-gray-100 rounded"
+              onClick={() => handleSelectDate(new Date())}
+              className="px-2 py-1 text-xs bg-blue-50 text-blue-600 rounded hover:bg-blue-100 transition-colors"
             >
-              ←
+              Go to Today
             </button>
-            <button
-              onClick={() => setSelectedDate(new Date())}
-              className={`px-3 py-1.5 text-sm rounded ${isToday ? 'bg-blue-100 text-blue-700' : 'hover:bg-gray-100'}`}
-            >
-              {isToday ? 'Today' : selectedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-            </button>
-            <button
-              onClick={() => changeDate(1)}
-              className="p-2 hover:bg-gray-100 rounded"
-            >
-              →
-            </button>
-          </div>
-
-          <button
-            onClick={() => setIsModalOpen(true)}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
-          >
-            <span>+</span>
-            <span>Log Meal</span>
-          </button>
+          )}
         </div>
       </div>
 
-      {/* Content */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column - Meals */}
-        <div className="lg:col-span-2 space-y-6">
-          <FoodLog
-            meals={meals}
-            loading={loading}
-            onEdit={handleEditMeal}
-            onDelete={handleDeleteMeal}
+      {/* Top Row: Calendar + Macro/Micro Panels */}
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+        {/* Calendar */}
+        <div className="lg:col-span-2">
+          <DietCalendar
+            year={calendarYear}
+            month={calendarMonth}
+            scores={scores}
+            selectedDate={selectedDate}
+            onSelectDate={handleSelectDate}
+            onChangeMonth={handleChangeMonth}
           />
         </div>
 
-        {/* Right Column - Stats */}
-        <div className="space-y-6">
-          <MacroChart summary={summary} />
-          <MicroTracker summary={summary} />
+        {/* Macro & Micro Panels */}
+        <div className="lg:col-span-3 space-y-6">
+          <MacroPanel summary={summary} />
+          <MicroPanel summary={summary} />
         </div>
       </div>
 
-      {/* Create Meal Modal */}
-      <Modal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        title="Log Meal"
-        size="xl"
-      >
-        <MealPlanner
-          onSubmit={handleCreateMeal}
-          onCancel={() => setIsModalOpen(false)}
-          initialDate={selectedDate}
-        />
-      </Modal>
+      {/* Meal Log */}
+      <DayMealLog
+        items={allFoodItems}
+        loading={loading}
+        onDelete={handleDeleteFoodItem}
+      />
 
-      {/* Edit Meal Modal */}
-      <Modal
-        isOpen={!!editingMeal}
-        onClose={() => setEditingMeal(null)}
-        title="Edit Meal"
-        size="xl"
-      >
-        {editingMeal && (
-          <div className="text-center py-8 text-gray-500">
-            <p>Meal editing coming soon!</p>
-            <p className="text-sm mt-2">For now, delete and recreate the meal.</p>
-          </div>
-        )}
-      </Modal>
+      {/* Food Quick-Add */}
+      <FoodQuickAdd
+        foods={foods}
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        onAddFood={handleAddFood}
+        onOpenCustomFoodForm={() => setIsCustomFoodOpen(true)}
+      />
+
+      {/* Custom Food Modal */}
+      <CustomFoodModal
+        isOpen={isCustomFoodOpen}
+        onClose={() => setIsCustomFoodOpen(false)}
+        onSave={handleSaveCustomFood}
+      />
+
+      {/* Toast */}
+      <Toast message={toastMessage} visible={toastVisible} onDismiss={dismissToast} />
     </div>
   );
 }

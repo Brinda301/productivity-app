@@ -34,11 +34,17 @@ model FoodItem {
   // Micros (optional, per serving)
   vitaminA     Float?   // mcg
   vitaminC     Float?   // mg
-  vitaminD     Float?   // mcg
+  vitaminD     Float?   // IU
   calcium      Float?   // mg
   iron         Float?   // mg
+  magnesium    Float?   // mg
+  zinc         Float?   // mg
   potassium    Float?   // mg
   sodium       Float?   // mg
+  omega3       Float?   // mg (EPA+DHA)
+  vitaminB6    Float?   // mg
+  vitaminB12   Float?   // mcg
+  folate       Float?   // mcg
   // Relations
   mealId       String
   meal         Meal     @relation(fields: [mealId], references: [id], onDelete: Cascade)

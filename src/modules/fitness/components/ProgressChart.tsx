@@ -52,8 +52,8 @@ export default function ProgressChart({ progress }: ProgressChartProps) {
             <XAxis dataKey="date" tick={{ fontSize: 10 }} />
             <YAxis tick={{ fontSize: 10 }} />
             <Tooltip
-              formatter={(value: number, name: string) => [
-                name === 'volume' ? `${value.toLocaleString()} kg` : `${value} min`,
+              formatter={(value, name) => [
+                name === 'volume' ? `${Number(value).toLocaleString()} kg` : `${value} min`,
                 name === 'volume' ? 'Volume' : 'Duration',
               ]}
             />

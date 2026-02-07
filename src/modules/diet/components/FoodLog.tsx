@@ -8,11 +8,12 @@ interface FoodLogProps {
   onDelete: (id: string) => void;
 }
 
-const mealIcons: Record<MealType, string> = {
+const mealIcons: Record<string, string> = {
   Breakfast: '🌅',
   Lunch: '☀️',
   Dinner: '🌙',
   Snack: '🍎',
+  'Quick Add': '⚡',
 };
 
 export default function FoodLog({ meals, loading, onEdit, onDelete }: FoodLogProps) {

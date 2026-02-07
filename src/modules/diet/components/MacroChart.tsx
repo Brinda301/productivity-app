@@ -74,7 +74,7 @@ export default function MacroChart({ summary }: MacroChartProps) {
                 ))}
               </Pie>
               <Tooltip
-                formatter={(value: number) => `${Math.round(value)}g`}
+                formatter={(value) => `${Math.round(Number(value))}g`}
               />
               <Legend />
             </PieChart>
